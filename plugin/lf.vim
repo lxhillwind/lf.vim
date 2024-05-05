@@ -61,20 +61,22 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     }
     # simplify(): handle '..' in path.
     var cwd = arg->fnamemodify(':p')->simplify()
-    # if arg is a file, then use its parent directory.
-    if !isdirectory(cwd)
-        cwd = cwd->substitute('\v[^/]+$', '', '')
-    endif
-    if !isdirectory(cwd)
-        echohl ErrorMsg | echo $'lf.vim: is not directory: "{cwd}"' | echohl None
-        return false
-    endif
     # assume that cwd is always end with '/'.
     if has('win32')
         # ignore shellslash option; since if we edit a .lnk linking to a
         # directory, then press '-', its path will contain '\' even if
         # shellslash is set.
         cwd = cwd->substitute('\', '/', 'g')
+    endif
+    var old_name: string = ''
+    # if arg is a file, then use its parent directory.
+    if !isdirectory(cwd)
+        old_name = cwd
+        cwd = cwd->substitute('\v[^/]+$', '', '')
+    endif
+    if !isdirectory(cwd)
+        echohl ErrorMsg | echo $'lf.vim: is not directory: "{arg}"' | echohl None
+        return false
     endif
 
     if !opt.reuse_buffer
@@ -107,6 +109,9 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     nnoremap <buffer> - -
 
     RefreshDir()
+    if !old_name->empty()
+        CursorToLastVisited(old_name)
+    endif
 
     return true
 enddef
@@ -137,6 +142,18 @@ def Quit()
     quit
 enddef
 
+def CursorToLastVisited(old_name: string)
+    const target_name = old_name->substitute('/$', '', '')
+        ->substitute('\v.*/', '', '')
+    for i in range(line('$'))
+        const line_no = i + 1
+        if getline(line_no) == target_name
+            execute $':{line_no}'
+            break
+        endif
+    endfor
+enddef
+
 def Up()
     # '/': unix; '[drive CDE...]:/': win32
     # TODO: detect win32 UNC path root reliably.
@@ -154,16 +171,7 @@ def Up()
     if !RefreshDir()
         b:lf.cwd = old_cwd
     else
-        # move cursor to the dir entry where we go from.
-        const target_name = old_cwd->substitute('/$', '', '')
-            ->substitute('\v.*/', '', '')
-        for i in range(line('$'))
-            const line_no = i + 1
-            if getline(line_no) == target_name
-                execute $':{line_no}'
-                break
-            endif
-        endfor
+        CursorToLastVisited(old_cwd)
     endif
 enddef
 
