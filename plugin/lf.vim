@@ -26,6 +26,15 @@ vim9script
 #     fi
 # }
 
+if !$LF_TARGET->empty()
+    # define LfMain command as buffer local, so after calling Lf(),
+    # a new buffer will be created, then it will no longer be available,
+    # and does not mess up cmdline completion.
+    command -buffer LfMain Main()
+endif
+command -nargs=+ -complete=custom,LfArgComplete Lf Lf(<q-args>)
+nnoremap - <Cmd>execute 'Lf' expand('%') ?? '.'<CR>
+
 augroup lf_plugin
     au!
 augroup END
@@ -260,6 +269,38 @@ def RefreshDir(): bool
     return true
 enddef
 
+def LfArgComplete(A: string, L: any, P: any): string
+    const first = A->empty() ? [expand('%') ?? '.'] : []
+    var others = []
+    var dir = './'
+    if A->match('/') >= 0 || (has('win32') && A->match('\\') >= 0)
+        dir = A
+        if has('win32')
+            dir = dir->substitute('\', '/', 'g')
+        endif
+        dir = dir->substitute('\v[^/]+$', '', '')
+    endif
+    try
+        others = dir
+            ->readdirex()
+            ->filter((_, i) => i.type->TypeIsDir())
+            ->sort((a, b) => {
+                # lower hidden dir's priority
+                if a.name[0] == '.' && b.name[0] != '.'
+                    return 1
+                elseif a.name[0] != '.' && b.name[0] == '.'
+                    return -1
+                else
+                    return a.name < b.name ? -1 : 1
+                endif
+            })
+            ->mapnew((_, i) => (dir == './' ? '' : dir) .. i.name .. '/')
+            ->map((_, i) => i->simplify())
+    catch /^Vim\%((\a\+)\)\=:E484:/
+    endtry
+    return (first + others)->join("\n")
+enddef
+
 def Main()
     const cwd = $LF_SELECT ?? '.'
     if Lf(cwd)
@@ -272,14 +313,3 @@ def Main()
         quit
     endif
 enddef
-
-if !$LF_TARGET->empty()
-    # define LfMain command as buffer local, so after calling Lf(),
-    # a new buffer will be created, then it will no longer be available,
-    # and does not mess up cmdline completion.
-    command -buffer LfMain Main()
-endif
-command -nargs=+ Lf Lf(<q-args>)
-nnoremap - <Cmd>execute 'Lf' expand('%') ?? '.'<CR>
-
-defc
