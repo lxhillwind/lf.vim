@@ -261,10 +261,6 @@ def RefreshDir(): bool
 enddef
 
 def Main()
-    if $LF_TARGET->empty()
-        echohl ErrorMsg | echo 'lf.vim: $LF_TARGET is not set!' | echohl None
-        return
-    endif
     const cwd = $LF_SELECT ?? '.'
     if Lf(cwd)
         nnoremap <buffer> q <ScriptCmd>Quit()<CR>
@@ -277,7 +273,12 @@ def Main()
     endif
 enddef
 
-command LfMain Main()
+if !$LF_TARGET->empty()
+    # define LfMain command as buffer local, so after calling Lf(),
+    # a new buffer will be created, then it will no longer be available,
+    # and does not mess up cmdline completion.
+    command -buffer LfMain Main()
+endif
 command -nargs=+ Lf Lf(<q-args>)
 nnoremap - <Cmd>execute 'Lf' expand('%') ?? '.'<CR>
 
