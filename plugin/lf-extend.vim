@@ -238,6 +238,15 @@ def JobCallback(ctx: dict<any>, job: any, exitcode: number)
     const entry = ctx.entries[ctx.current_index]
     var path_src = entry.dir .. entry.name
     var path_dest = ctx.dest
+    if !has('win32')
+        # on unix-like system, avoid - to start path argument.
+        if path_src->match('^-') >= 0
+            path_src = './' .. path_src
+        endif
+        if path_dest->match('^-') >= 0
+            path_dest = './' .. path_dest
+        endif
+    endif
     if has('win32')
         path_src = path_src->substitute('/', '\\', 'g')
         path_dest = (path_dest .. '/')->substitute('//$', '/', '') .. entry.name
