@@ -11,8 +11,8 @@ vim9script
 #   if no arg provided, then check if exactly ONE another lf buffer exists,
 #   and use that buffer's cwd as dest. (like dual pane fm)
 
-command -range -nargs=* LfMoveTo LfMoveTo(<line1>, <line2>, <q-args>)
-command -range -nargs=* LfCopyTo LfCopyTo(<line1>, <line2>, <q-args>)
+command -range -nargs=* -complete=dir LfMoveTo LfMoveTo(<line1>, <line2>, <q-args>)
+command -range -nargs=* -complete=dir LfCopyTo LfCopyTo(<line1>, <line2>, <q-args>)
 command -range LfDelete LfDelete(<line1>, <line2>)
 
 augroup lf_extend
