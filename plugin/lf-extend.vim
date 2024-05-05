@@ -154,10 +154,27 @@ def GetDestDir(dest: string): string
 enddef
 
 def EchoEntries(entries: list<dict<string>>)
-    for i in entries
+    # 3: lines count except entries list in LfMoveTo / LfCopyTo / LfDelete actions.
+    const count_without_pager: number = &columns - 3
+    const omit: bool = entries->len() > count_without_pager
+    var idx = 0
+    for i in (
+            omit
+            ? entries[: 9] + entries[entries->len() - 10 :]
+            : entries
+            )
         echohl Directory | echo '  ' i.dir | echohl None
         echon i.name
+        idx += 1
+        if omit && idx == 10
+            echohl MoreMsg | echo '...' | echohl None
+        endif
     endfor
+    if omit
+        echohl MoreMsg
+        echo $'{entries->len()} items in total; display first 10 and last 10 items.'
+        echohl None
+    endif
 enddef
 
 const job_info_success = 'SUCC'
