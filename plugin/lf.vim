@@ -102,7 +102,7 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     nnoremap <buffer> ; <ScriptCmd>Find(';')<CR>
     nnoremap <buffer> , <ScriptCmd>Find(',')<CR>
     nnoremap <buffer> e <ScriptCmd>Edit()<CR>
-    nnoremap <buffer> yy <ScriptCmd>YankPath()<CR>
+    nnoremap <buffer> yy <ScriptCmd>YankFullPath()<CR>
     # recover -'s mapping.
     nnoremap <buffer> - -
 
@@ -220,10 +220,19 @@ def Edit()
     execute 'edit' fnameescape(filename)
 enddef
 
-def YankPath()
+def YankFullPath()
     const filename = b:lf.cwd .. getline('.')
-    @" = filename
-    echo $'path yanked to " register: {filename}'
+    const has_newline = filename->count("\n") > 0
+    if has_newline
+        # when text to copy contains newline character inline:
+        # no way to preserve <Nul> (^@) in registers with assignment;
+        # so use `yy` like operation.
+        setline('.', filename)
+        defer execute('silent normal! u')
+        normal! yy
+    else
+        setreg('', filename, 'l')
+    endif
 enddef
 
 def TypeIsDir(ty: string): bool
