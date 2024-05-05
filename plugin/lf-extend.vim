@@ -155,7 +155,7 @@ enddef
 
 def EchoEntries(entries: list<dict<string>>)
     # 3: lines count except entries list in LfMoveTo / LfCopyTo / LfDelete actions.
-    const count_without_pager: number = &columns - 3
+    const count_without_pager: number = &lines - 3
     const omit: bool = entries->len() > count_without_pager
     var idx = 0
     for i in (
