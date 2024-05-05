@@ -281,6 +281,8 @@ def JobCallback(ctx: dict<any>, job: any, exitcode: number)
     )
     job_start(args, {
         exit_cb: function('JobCallback', [ctx]),
+        # avoid changing buffer dir cause inconsistent result.
+        cwd: ctx.cwd,
     })
 enddef
 
@@ -314,7 +316,13 @@ def ImplCopyTo(src_entries: list<dict<string>>, dest: string)
     echo
     redrawstatus | echon $'copying files... (execute ":{bufnr}b" for details)'
 
-    var ctx = {entries: src_entries->deepcopy(), dest: dest, current_index: -1, bufnr: bufnr}
+    var ctx = {
+        entries: src_entries->deepcopy(),
+        dest: dest,
+        current_index: -1,
+        bufnr: bufnr,
+        cwd: getcwd(),
+    }
     JobCallback(ctx, null, 0)
     execute $'au BufReadCmd <buffer={bufnr}> JobProgress({bufnr})'
 enddef
