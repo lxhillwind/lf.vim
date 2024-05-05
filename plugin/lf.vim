@@ -13,6 +13,7 @@ vim9script
 #     fi
 #     LF_SELECT="$1" LF_TARGET="$LF_TARGET" vim +LfMain
 #     local x="$(cat -- "$LF_TARGET")"
+#     rm -- "$LF_TARGET"
 #     if [ -z "$x" ]; then
 #         # if lf.vim gives error, then "$x" will be empty.
 #         return 0
