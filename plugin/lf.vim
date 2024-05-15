@@ -98,6 +98,7 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     prop_type_add(prop_dir, {bufnr: buf, highlight: 'Directory'})
     prop_type_add(prop_not_dir, {bufnr: buf, highlight: 'Normal'})
 
+    nnoremap <buffer> q <ScriptCmd>Quit()<CR>
     nnoremap <buffer> h <ScriptCmd>Up()<CR>
     nnoremap <buffer> l <ScriptCmd>Down()<CR>
     nnoremap <buffer> f <ScriptCmd>Find('f')<CR>
@@ -121,10 +122,10 @@ const prop_dir = 'dir'
 const prop_not_dir = 'not_dir'
 
 def Quit()
-    if !(
-            tabpagenr('$') == 1 && winnr('$') == 1
-            )
-        # only do thing when quit from the last open window.
+    # always close current buffer
+    defer execute('quit')
+
+    if empty($LF_TARGET)
         return
     endif
 
@@ -140,7 +141,6 @@ def Quit()
     # use split("\n") (then join implicitly via writefile()),
     # since cwd may contain "\n".
     cwd->split("\n")->writefile($LF_TARGET)
-    quit
 enddef
 
 def CursorToLastVisited(old_name: string)
@@ -321,9 +321,7 @@ enddef
 
 def Main()
     const cwd = $LF_SELECT ?? '.'
-    if Lf(cwd)
-        nnoremap <buffer> q <ScriptCmd>Quit()<CR>
-    else
+    if !Lf(cwd)
         echo 'press any key to quit'
         # getchar() cannot catch <C-c>, so map it to quit.
         nnoremap <buffer> <C-c> <Cmd>quit<CR>
