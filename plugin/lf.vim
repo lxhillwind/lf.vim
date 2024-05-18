@@ -297,9 +297,12 @@ def LfArgComplete(A: string, L: any, P: any): string
             dir = dir->substitute('\', '/', 'g')
         endif
         dir = dir->substitute('\v[^/]+$', '', '')
+    elseif A == '~'
+        dir = '~/'
     endif
     try
-        others = dir
+        const dir_expand_tidle = dir->match('^\~') >= 0 ? $HOME .. dir[1 :] : dir
+        others = dir_expand_tidle
             ->readdirex()
             ->filter((_, i) => i.type->TypeIsDir())
             ->sort((a, b) => {
