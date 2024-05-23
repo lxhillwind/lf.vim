@@ -98,7 +98,7 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     prop_type_add(prop_dir, {bufnr: buf, highlight: 'Directory'})
     prop_type_add(prop_not_dir, {bufnr: buf, highlight: 'Normal'})
 
-    nnoremap <buffer> q <ScriptCmd>Quit()<CR>
+    nnoremap <buffer> q <ScriptCmd>KeyQ()<CR>
     nnoremap <buffer> h <ScriptCmd>Up()<CR>
     nnoremap <buffer> l <ScriptCmd>Down()<CR>
     nnoremap <buffer> f <ScriptCmd>Find('f')<CR>
@@ -120,6 +120,15 @@ enddef
 
 const prop_dir = 'dir'
 const prop_not_dir = 'not_dir'
+
+def KeyQ()
+    # remap to quit if there is only one window.
+    if tabpagenr('$') == 1 && winnr('$') == 1
+        Quit()
+    else
+        feedkeys('q', 'n')
+    endif
+enddef
 
 def Quit()
     # always close current buffer
