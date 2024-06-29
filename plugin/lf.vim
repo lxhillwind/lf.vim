@@ -107,6 +107,10 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     nnoremap <buffer> , <ScriptCmd>Find(',')<CR>
     nnoremap <buffer> e <ScriptCmd>Edit()<CR>
     nnoremap <buffer> yy <ScriptCmd>YankFullPath()<CR>
+    # refresh
+    nnoremap <buffer> r :e<CR>
+    # refresh all lf window
+    nnoremap <buffer> R :windo if exists('b:lf') \| silent e \| endif<CR>
     # recover -'s mapping.
     nnoremap <buffer> - -
 
