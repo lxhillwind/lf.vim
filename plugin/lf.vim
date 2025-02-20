@@ -60,6 +60,12 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
             endif
         endif
     }
+
+    # define highlight here, in case colorscheme change clear them.
+    hi link lf_buffer_directory Directory
+    hi link lf_buffer_symlink Added
+    hi link lf_buffer_file Normal
+
     # simplify(): handle '..' in path.
     var cwd = arg->fnamemodify(':p')->simplify()
     # assume that cwd is always end with '/'.
@@ -95,8 +101,9 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
 
     b:lf = {cwd: cwd, find_char: '', entries: []}
     const buf = bufnr()
-    prop_type_add(prop_dir, {bufnr: buf, highlight: 'Directory'})
-    prop_type_add(prop_not_dir, {bufnr: buf, highlight: 'Normal'})
+    prop_type_add(prop_dir, {bufnr: buf, highlight: 'lf_buffer_directory'})
+    prop_type_add(prop_not_dir, {bufnr: buf, highlight: 'lf_buffer_file'})
+    prop_type_add(prop_symlink, {bufnr: buf, highlight: 'lf_buffer_symlink'})
 
     nnoremap <buffer> q <ScriptCmd>KeyQ()<CR>
     nnoremap <buffer> h <ScriptCmd>Up()<CR>
@@ -107,6 +114,7 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     nnoremap <buffer> , <ScriptCmd>Find(',')<CR>
     nnoremap <buffer> e <ScriptCmd>Edit()<CR>
     nnoremap <buffer> yy <ScriptCmd>YankFullPath()<CR>
+    nnoremap <buffer> K <ScriptCmd>KeyK()<CR>
     # refresh
     nnoremap <buffer> r :e<CR>
     # refresh all lf window
@@ -124,6 +132,7 @@ enddef
 
 const prop_dir = 'dir'
 const prop_not_dir = 'not_dir'
+const prop_symlink = 'symlink'
 
 def KeyQ()
     # remap to quit if there is only one window.
@@ -157,11 +166,11 @@ def Quit()
 enddef
 
 def CursorToLastVisited(old_name: string)
-    const target_name = old_name->substitute('/$', '', '')
-        ->substitute('\v.*/', '', '')
+    const target_basename = old_name->substitute('/$', '', '')
+        ->substitute('\v.*/', '', '') .. '/'
     for i in range(line('$'))
         const line_no = i + 1
-        if getline(line_no) == target_name
+        if getline(line_no) == target_basename
             execute $':{line_no}'
             break
         endif
@@ -257,9 +266,61 @@ def YankFullPath()
     endif
 enddef
 
+def KeyK()
+    const filename = getline('.')
+    const info = readdirex('.', (i) => i.name == filename)->get(0)
+    if empty(info)
+        return
+    endif
+    var text = []
+    for [k, v] in items(info)
+        var t: string = $'{v}'
+        if k == 'time'
+            t = strftime('%Y-%m-%d %H:%M:%S', v)
+            t = $'{v} ({t})'
+        elseif k == 'size'
+            if isdirectory(filename)
+                continue
+            endif
+            const unit = ['', 'K', 'M', 'G']
+            var n = v
+            var base = 0
+            while n > 0 && base <= len(unit)
+                t = $'{n}{unit[base]}'
+                base += 1
+                n = v / float2nr(pow(10, 3 * base))
+            endwhile
+            if t != $'{v}'
+                t = $'{v} ({t})'
+            endif
+        endif
+        text->add($'{k}: {t}')
+    endfor
+    ShowInfo(text)
+enddef
+
+def ShowInfo(text: list<string>)
+    popup_create(text, {
+        mapping: false,
+        filter: (winid, key) => {
+            const key_ignore = ['q', "<\Esc>", "\<C-[>", "\<C-c>"]
+            winid->popup_close()
+            if key_ignore->index(key) < 0
+                feedkeys(key, 'm')
+            endif
+            return true
+        },
+    })
+enddef
+
 def TypeIsDir(ty: string): bool
     const types_dir = ['linkd', 'dir']
     return types_dir->index(ty) >= 0
+enddef
+
+def TypeIsSymlink(ty: string): bool
+    const types_symlink = ['linkd', 'link', 'junction']
+    return types_symlink->index(ty) >= 0
 enddef
 
 def RefreshDir(): bool
@@ -289,8 +350,13 @@ def RefreshDir(): bool
     for i in range(len(b:lf.entries))
         const entry = b:lf.entries[i]
         const is_dir = TypeIsDir(entry.type)
-        append(i, entry.name)
-        prop_add(i + 1, 1, {id: i, length: len(entry.name) + 1, type: is_dir ? prop_dir : prop_not_dir,  bufnr: buf})
+        const is_symlink = TypeIsSymlink(entry.type)
+        append(i, entry.name .. (is_dir ? '/' : ''))
+        prop_add(i + 1, 1, {
+            id: i, length: len(entry.name) + 1,
+            type: is_symlink ? prop_symlink : (is_dir ? prop_dir : prop_not_dir),
+            bufnr: buf
+        })
     endfor
     normal! "_ddgg
 
