@@ -167,10 +167,10 @@ enddef
 
 def CursorToLastVisited(old_name: string)
     const target_basename = old_name->substitute('/$', '', '')
-        ->substitute('\v.*/', '', '') .. '/'
+        ->substitute('\v.*/', '', '')
     for i in range(line('$'))
         const line_no = i + 1
-        if getline(line_no) == target_basename
+        if getline(line_no)->substitute('/$', '', '') == target_basename
             execute $':{line_no}'
             break
         endif
@@ -267,7 +267,7 @@ def YankFullPath()
 enddef
 
 def KeyK()
-    const filename = getline('.')
+    const filename = getline('.')->substitute('/$', '', '')
     const info = readdirex('.', (i) => i.name == filename)->get(0)
     if empty(info)
         return
