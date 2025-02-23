@@ -268,12 +268,19 @@ enddef
 
 def KeyK()
     const filename = getline('.')->substitute('/$', '', '')
-    const info = readdirex('.', (i) => i.name == filename)->get(0)
-    if empty(info)
-        return
+
+    var info: dict<any> = {name: filename}
+    info.perm = getfperm(filename)
+    info.type = getftype(filename)
+    info.time = getftime(filename)
+    if !TypeIsDir(info.type)
+        info.size = getfsize(filename)
     endif
+
     var text = []
-    for [k, v] in items(info)
+    const sort_order = ['name', 'perm', 'type', 'time', 'size']
+    for k in keys(info)->sort((a, b) => sort_order->index(a) - sort_order->index(b))
+        const v = info[k]
         var t: string = $'{v}'
         if k == 'time'
             t = strftime('%Y-%m-%d %H:%M:%S', v)
@@ -323,6 +330,14 @@ def TypeIsSymlink(ty: string): bool
     return types_symlink->index(ty) >= 0
 enddef
 
+def ReaddirEx(cwd: string): list<dict<string>>
+    var result = readdir(cwd)->mapnew((_, i) => ({name: i}))
+    for item in result
+        item.type = getftype(cwd .. '/' .. item.name)
+    endfor
+    return result
+enddef
+
 def RefreshDir(): bool
     const cwd = b:lf.cwd
     if !isdirectory(cwd)
@@ -330,7 +345,7 @@ def RefreshDir(): bool
         return false
     endif
     try
-        b:lf.entries = readdirex(cwd)
+        b:lf.entries = ReaddirEx(cwd)
     catch
         echohl ErrorMsg | echo $'lf.vim: read dir error: "{cwd}"' | echohl None
         return false
@@ -382,7 +397,7 @@ def LfArgComplete(A: string, L: any, P: any): string
     try
         const dir_expand_tidle = dir->match('^\~') >= 0 ? $HOME .. dir[1 :] : dir
         others = dir_expand_tidle
-            ->readdirex()
+            ->ReaddirEx()
             ->filter((_, i) => i.type->TypeIsDir())
             ->sort((a, b) => {
                 # lower hidden dir's priority
