@@ -266,12 +266,21 @@ def YankFullPath()
     endif
 enddef
 
+def Getftype(filename: string): string
+    # getftype cannot check if symlink is dir.
+    var result = getftype(filename)
+    if result == 'link' && isdirectory(filename)
+        result = 'linkd'
+    endif
+    return result
+enddef
+
 def KeyK()
     const filename = getline('.')->substitute('/$', '', '')
 
     var info: dict<any> = {name: filename}
     info.perm = getfperm(filename)
-    info.type = getftype(filename)
+    info.type = Getftype(filename)
     info.time = getftime(filename)
     if !TypeIsDir(info.type)
         info.size = getfsize(filename)
@@ -333,7 +342,7 @@ enddef
 def ReaddirEx(cwd: string): list<dict<string>>
     var result = readdir(cwd)->mapnew((_, i) => ({name: i}))
     for item in result
-        item.type = getftype(cwd .. '/' .. item.name)
+        item.type = Getftype(cwd .. '/' .. item.name)
     endfor
     return result
 enddef
