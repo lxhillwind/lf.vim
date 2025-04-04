@@ -38,6 +38,12 @@ nnoremap - <Cmd>execute 'Lf' expand('%') ?? '.'<CR>
 
 augroup lf_plugin
     au!
+    au BufEnter * {
+        const file = expand('<afile>')
+        if !exists('b:lf.cwd') && isdirectory(file)
+            silent call Lf(file)
+        endif
+    }
 augroup END
 
 def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
@@ -81,17 +87,18 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
         old_name = cwd
         cwd = cwd->substitute('\v[^/]+$', '', '')
     endif
-    if !isdirectory(cwd)
-        echohl ErrorMsg | echo $'lf.vim: is not directory: "{arg}"' | echohl None
+
+    const [entries, ok] = CheckAndReaddir(cwd)
+    if !ok
         return false
     endif
 
     if !opt.reuse_buffer
         noswapfile enew
-        # this BufReadCmd action is used for reusing buffer;
+        # this BufReadCmd action is used for reusing buffer ('e' / 'edit');
         # because props lose after re-edit buffer.
         augroup lf_plugin
-            au BufReadCmd <buffer> Lf('.', {reuse_buffer: true})
+            au BufReadCmd <buffer> Lf(expand('%'), {reuse_buffer: true})
         augroup END
     endif
     set buftype=nofile
@@ -99,7 +106,7 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     # as expected; otherwise props will lose, causing RefreshDir() raise.
     set bufhidden=hide
 
-    b:lf = {cwd: cwd, find_char: '', entries: []}
+    b:lf = {cwd: cwd, find_char: '', entries: entries}
     const buf = bufnr()
     prop_type_add(prop_dir, {bufnr: buf, highlight: 'lf_buffer_directory'})
     prop_type_add(prop_not_dir, {bufnr: buf, highlight: 'lf_buffer_file'})
@@ -122,7 +129,7 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
     # recover -'s mapping.
     nnoremap <buffer> - -
 
-    RefreshDir()
+    RefreshDir(true)
     if !old_name->empty()
         CursorToLastVisited(old_name)
     endif
@@ -347,18 +354,30 @@ def ReaddirEx(cwd: string): list<dict<string>>
     return result
 enddef
 
-def RefreshDir(): bool
-    const cwd = b:lf.cwd
+def CheckAndReaddir(cwd: string): list<any>
+    var [entries, ok] = [[], false]
     if !isdirectory(cwd)
         echohl ErrorMsg | echo $'lf.vim: not directory: "{cwd}"' | echohl None
-        return false
+    else
+        try
+            entries = ReaddirEx(cwd)
+            ok = true
+        catch
+            echohl ErrorMsg | echo $'lf.vim: read dir error: "{cwd}"' | echohl None
+        endtry
     endif
-    try
-        b:lf.entries = ReaddirEx(cwd)
-    catch
-        echohl ErrorMsg | echo $'lf.vim: read dir error: "{cwd}"' | echohl None
-        return false
-    endtry
+    return [entries, ok]
+enddef
+
+def RefreshDir(reuse_entries: bool = false): bool
+    const cwd = b:lf.cwd
+    if !reuse_entries
+        var [entries, ok] = CheckAndReaddir(cwd)
+        if !ok
+            return false
+        endif
+        b:lf.entries = entries
+    endif
 
     normal! gg"_dG
     b:lf.entries->sort((a, b) => {
@@ -384,7 +403,6 @@ def RefreshDir(): bool
     endfor
     normal! "_ddgg
 
-    silent execute 'lcd' fnameescape(cwd)
     # use bufnr to make filename unique.
     execute 'file' fnameescape(cwd .. $' [{bufnr()}]')
     return true
