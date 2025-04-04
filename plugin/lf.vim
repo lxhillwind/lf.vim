@@ -283,9 +283,10 @@ def Getftype(filename: string): string
 enddef
 
 def KeyK()
-    const filename = getline('.')->substitute('/$', '', '')
+    const basename = getline('.')->substitute('/$', '', '')
+    const filename = b:lf.cwd .. basename
 
-    var info: dict<any> = {name: filename}
+    var info: dict<any> = {name: basename}
     info.perm = getfperm(filename)
     info.type = Getftype(filename)
     info.time = getftime(filename)
