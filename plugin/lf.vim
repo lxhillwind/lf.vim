@@ -41,7 +41,7 @@ augroup lf_plugin
     au BufEnter * {
         const file = expand('<afile>')
         if !exists('b:lf.cwd') && isdirectory(file)
-            silent call Lf(file)
+            silent call Lf(file, { reuse_buffer: true })
         endif
     }
 augroup END
@@ -178,7 +178,7 @@ def CursorToLastVisited(old_name: string)
     for i in range(line('$'))
         const line_no = i + 1
         if getline(line_no)->substitute('/$', '', '') == target_basename
-            execute $':{line_no}'
+            execute $'keepjumps :{line_no}'
             break
         endif
     endfor
@@ -380,7 +380,7 @@ def RefreshDir(reuse_entries: bool = false): bool
         b:lf.entries = entries
     endif
 
-    normal! gg"_dG
+    keepjumps normal! gg"_dG
     b:lf.entries->sort((a, b) => {
         const type_a = TypeIsDir(a.type) ? 1 : 0
         const type_b = TypeIsDir(b.type) ? 1 : 0
@@ -402,10 +402,10 @@ def RefreshDir(reuse_entries: bool = false): bool
             bufnr: buf
         })
     endfor
-    normal! "_ddgg
+    keepjumps normal! "_ddgg
 
     # use bufnr to make filename unique.
-    execute 'file' fnameescape(cwd .. $' [{bufnr()}]')
+    execute 'keepalt file' fnameescape(cwd .. $' [{bufnr()}]')
     return true
 enddef
 
