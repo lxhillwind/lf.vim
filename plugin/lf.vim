@@ -53,10 +53,14 @@ def Lf(arg: string, opt: dict<any> = {reuse_buffer: false}): bool
         #
         # xcopy will check only cwd's top level entries (not recursively), and
         # '/l' (dry run) option is provided; so it should be safe.
-        if has('win32')
+        if has('win32') || has('win32unix')
             const cwd = arg->substitute('\', '/', 'g')
             if cwd =~ '\v^//.+/.+'
-                const job = job_start(['xcopy', cwd->substitute('/', '\\', 'g'), '/l', '/c'])
+                const job = job_start([
+                    'xcopy', cwd->substitute('/', '\\', 'g'),
+                    # https://stackoverflow.com/questions/34647591/passing-windows-slash-based-parameters-to-a-program-from-bash-script
+                    has('win32unix') ? '//l' : '/l',
+                ])
                 sleep 100m
                 if job_status(job) == 'run'
                     echohl ErrorMsg | echo $'lf.vim: may hang on: "{cwd}"' | echohl None
@@ -350,7 +354,7 @@ enddef
 def ReaddirEx(cwd: string): list<dict<string>>
     var result = readdir(cwd)->mapnew((_, i) => ({name: i}))
     for item in result
-        item.type = Getftype(cwd .. '/' .. item.name)
+        item.type = Getftype(cwd .. item.name)
     endfor
     return result
 enddef
